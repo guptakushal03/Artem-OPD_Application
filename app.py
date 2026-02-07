@@ -31,20 +31,70 @@ def list_patients():
 def create_patient():
     if request.method == 'POST':
         try:
+            # Validate name
+            name = request.form.get('name', '').strip()
+            if not name:
+                flash('Name is required!', 'danger')
+                return render_template('patient_form.html')
+            if len(name) < 2:
+                flash('Name must be at least 2 characters!', 'danger')
+                return render_template('patient_form.html')
+            if len(name) > 100:
+                flash('Name is too long (max 100 characters)!', 'danger')
+                return render_template('patient_form.html')
+            
+            # Validate gender
+            gender = request.form.get('gender', '').strip()
+            valid_genders = ['Male', 'Female', 'Other']
+            if gender not in valid_genders:
+                flash('Please select a valid gender!', 'danger')
+                return render_template('patient_form.html')
+            
+            # Validate age
+            age_str = request.form.get('age', '').strip()
+            if not age_str:
+                flash('Age is required!', 'danger')
+                return render_template('patient_form.html')
+            
+            try:
+                age = int(age_str)
+            except ValueError:
+                flash('Age must be a valid number!', 'danger')
+                return render_template('patient_form.html')
+            
+            if age < 0 or age > 150:
+                flash('Age must be between 0 and 150!', 'danger')
+                return render_template('patient_form.html')
+            
+            # Validate phone
+            phone = request.form.get('phone', '').strip()
+            if not phone:
+                flash('Phone number is required!', 'danger')
+                return render_template('patient_form.html')
+            
+            # Remove common separators and validate digits
+            phone_digits = ''.join(c for c in phone if c.isdigit())
+            if len(phone_digits) < 10 or len(phone_digits) > 15:
+                flash('Phone number must be 10-15 digits!', 'danger')
+                return render_template('patient_form.html')
+            
+            # All validations passed - create patient
             patient = Patient(
-                name=request.form['name'],
-                gender=request.form['gender'],
-                age=int(request.form['age']),
-                phone=request.form['phone'],
+                name=name,
+                gender=gender,
+                age=age,
+                phone=phone,
                 status='Active'
             )
             db.session.add(patient)
             db.session.commit()
             flash('Patient created successfully!', 'success')
             return redirect(url_for('list_patients'))
+            
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating patient: {str(e)}', 'danger')
+            return render_template('patient_form.html')
     
     return render_template('patient_form.html')
 
@@ -65,27 +115,73 @@ def today_appointments():
 def create_appointment():
     if request.method == 'POST':
         try:
-            patient_id = int(request.form['patient_id'])
-            patient = Patient.query.get_or_404(patient_id)
+            # Validate patient_id exists and is valid
+            patient_id_str = request.form.get('patient_id', '').strip()
+            if not patient_id_str:
+                flash('Please select a patient!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
+            
+            # Validate patient_id is a number
+            try:
+                patient_id = int(patient_id_str)
+            except ValueError:
+                flash('Invalid patient selection!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
+            
+            # Validate patient exists
+            patient = Patient.query.get(patient_id)
+            if not patient:
+                flash('Patient not found!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
             
             # Business Rule: Patient must be Active
             if not patient.is_active():
                 flash('Cannot create appointment for inactive patient!', 'danger')
-                return redirect(url_for('create_appointment'))
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
             
-            appointment_datetime = datetime.strptime(
-                request.form['appointment_datetime'], 
-                '%Y-%m-%dT%H:%M'
-            )
+            # Validate doctor name
+            doctor_name = request.form.get('doctor_name', '').strip()
+            if not doctor_name:
+                flash('Doctor name is required!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
+            
+            if len(doctor_name) > 100:
+                flash('Doctor name is too long (max 100 characters)!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
+            
+            # Validate appointment datetime
+            appointment_datetime_str = request.form.get('appointment_datetime', '').strip()
+            if not appointment_datetime_str:
+                flash('Appointment date and time is required!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
+            
+            try:
+                appointment_datetime = datetime.strptime(
+                    appointment_datetime_str, 
+                    '%Y-%m-%dT%H:%M'
+                )
+            except ValueError:
+                flash('Invalid date/time format!', 'danger')
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
             
             # Business Rule: Appointment cannot be in the past
             if appointment_datetime < datetime.now():
                 flash('Appointment cannot be scheduled in the past!', 'danger')
-                return redirect(url_for('create_appointment'))
+                patients = Patient.query.filter_by(status='Active').all()
+                return render_template('appointment_form.html', patients=patients)
             
+            # All validations passed - create appointment
             appointment = Appointment(
                 patient_id=patient_id,
-                doctor_name=request.form['doctor_name'],
+                doctor_name=doctor_name,
                 appointment_datetime=appointment_datetime,
                 status='Scheduled'
             )
@@ -97,11 +193,12 @@ def create_appointment():
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating appointment: {str(e)}', 'danger')
+            patients = Patient.query.filter_by(status='Active').all()
+            return render_template('appointment_form.html', patients=patients)
     
+    # GET request - show form
     patients = Patient.query.filter_by(status='Active').all()
     return render_template('appointment_form.html', patients=patients)
-
-# ============= CONSULTATION ROUTES =============
 
 @app.route('/consultations/new/<int:appointment_id>', methods=['GET', 'POST'])
 def create_consultation(appointment_id):
@@ -124,12 +221,31 @@ def create_consultation(appointment_id):
                 flash('Patient is inactive!', 'danger')
                 return redirect(url_for('today_appointments'))
             
+            # Get and validate form data (handle None/empty values)
+            vitals_1 = request.form.get('vitals_1', '').strip()
+            vitals_2 = request.form.get('vitals_2', '').strip()
+            notes = request.form.get('notes', '').strip()
+            
+            # Optional: Validate max lengths
+            if vitals_1 and len(vitals_1) > 100:
+                flash('Vitals 1 is too long (max 100 characters)!', 'danger')
+                return render_template('consultation_form.html', appointment=appointment)
+            
+            if vitals_2 and len(vitals_2) > 100:
+                flash('Vitals 2 is too long (max 100 characters)!', 'danger')
+                return render_template('consultation_form.html', appointment=appointment)
+            
+            if notes and len(notes) > 1000:
+                flash('Notes are too long (max 1000 characters)!', 'danger')
+                return render_template('consultation_form.html', appointment=appointment)
+            
+            # Create consultation with validated data
             consultation = Consultation(
                 appointment_id=appointment_id,
                 patient_id=appointment.patient_id,
-                vitals_1=request.form['vitals_1'],
-                vitals_2=request.form['vitals_2'],
-                notes=request.form['notes'],
+                vitals_1=vitals_1 if vitals_1 else None,
+                vitals_2=vitals_2 if vitals_2 else None,
+                notes=notes if notes else None,
                 status='Draft'
             )
             db.session.add(consultation)
@@ -140,8 +256,9 @@ def create_consultation(appointment_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating consultation: {str(e)}', 'danger')
+            return render_template('consultation_form.html', appointment=appointment)
     
-    # Validation before showing form
+    # GET request - Validation before showing form
     if not appointment.is_scheduled():
         flash('Consultation can only be created for scheduled appointments!', 'danger')
         return redirect(url_for('today_appointments'))
