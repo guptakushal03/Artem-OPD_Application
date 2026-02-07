@@ -45,7 +45,7 @@ Patient (1) ----< (N) Appointment (1) ---- (1) Consultation
 
 ### Prerequisites
 - Python 3.9+
-- MariaDB or MySQL
+- MariaDB or MySQL server running
 
 ### Setup Database
 ```sql
@@ -54,15 +54,30 @@ CREATE DATABASE opd_db;
 
 ### Install Dependencies
 ```bash
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Create and activate virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+# source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### Configure Database
-Edit `config.py` with your database credentials:
-```python
-SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://username:password@localhost/opd_db'
+### Configure Environment Variables (using .env)
+Sensitive configuration (like database credentials) is loaded from a `.env` file.
+
+1. Create a file named `.env` in the project root with the following content (replace with your actual values):
+
+   ```
+   # .env (example - do NOT commit to git!)
+   SECRET_KEY=your-very-secure-random-secret-key-here
+   DATABASE_URL=mysql+pymysql://root:yourpassword@localhost/opd_db
+   ```
+
+### Initialize Database (optional sample data)
+```bash
+python init_db.py
 ```
 
 ### Run Development Server
@@ -72,13 +87,22 @@ python app.py
 
 Visit: http://localhost:5000
 
-### Run with Gunicorn (Production)
+### Run with Gunicorn (Production-like)
 ```bash
+# Basic TCP binding (good for local testing)
 gunicorn -w 4 -b 0.0.0.0:8000 app:app
+
+# Recommended (with timeout & logging)
+gunicorn \
+  --workers 4 \
+  --bind 0.0.0.0:8000 \
+  --timeout 120 \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
 ```
 
 ## Application Flow
-
 1. **Create Patient** → Patient is Active by default
 2. **Book Appointment** → Must select Active patient, cannot be in past
 3. **View Today's Appointments** → See all appointments for current date
@@ -89,17 +113,23 @@ gunicorn -w 4 -b 0.0.0.0:8000 app:app
 ## Project Structure
 ```
 opd_application/
-├── app.py              # Main Flask application
-├── models.py           # Database models
-├── config.py           # Configuration
-├── requirements.txt    # Python dependencies
-├── templates/          # HTML templates
-│   ├── base.html
-│   ├── patients.html
-│   ├── patient_form.html
-│   ├── appointment_form.html
-│   ├── today_appointments.html
-│   ├── consultation_form.html
-│   └── patient_consultations.html
-└── README.md
+├── app.py                  # Main Flask application
+├── models.py               # Database models
+├── config.py               # Configuration (now uses env vars)
+├── init_db.py              # Optional DB init with samples
+├── requirements.txt        # Python dependencies
+├── .env                    # Sensitive config (do NOT commit!)
+├── .env.example            # Template for .env
+├── .gitignore              # Should include .env, venv/, *.pyc, etc.
+└── templates/              # HTML templates
+    ├── base.html
+    ├── patients.html
+    ├── patient_form.html
+    ├── appointment_form.html
+    ├── today_appointments.html
+    ├── consultation_form.html
+    └── patient_consultations.html
+```
+
+This setup keeps your code clean, secure, and easy to deploy while fully meeting the assignment requirements.
 ```
