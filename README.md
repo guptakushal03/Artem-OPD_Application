@@ -130,6 +130,3 @@ opd_application/
     ├── consultation_form.html
     └── patient_consultations.html
 ```
-
-This setup keeps your code clean, secure, and easy to deploy while fully meeting the assignment requirements.
-```
