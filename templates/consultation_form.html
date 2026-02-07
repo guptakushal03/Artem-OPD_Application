@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>New Consultation</h2>
+
+<div class="alert alert-info">
+    <strong>Patient:</strong> {{ appointment.patient.name }}<br>
+    <strong>Doctor:</strong> {{ appointment.doctor_name }}<br>
+    <strong>Time:</strong> {{ appointment.appointment_datetime.strftime('%Y-%m-%d %I:%M %p') }}
+</div>
+
+<form method="POST" class="mt-4">
+    <div class="mb-3">
+        <label class="form-label">Vitals 1 (Blood Pressure)</label>
+        <input type="text" name="vitals_1" class="form-control" placeholder="e.g., 120/80 mmHg">
+    </div>
+    
+    <div class="mb-3">
+        <label class="form-label">Vitals 2 (Temperature)</label>
+        <input type="text" name="vitals_2" class="form-control" placeholder="e.g., 98.6°F">
+    </div>
+    
+    <div class="mb-3">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="4"></textarea>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Save Consultation (Draft)</button>
+    <a href="{{ url_for('today_appointments') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

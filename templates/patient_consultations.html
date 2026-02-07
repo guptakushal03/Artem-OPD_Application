@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Completed Consultations - {{ patient.name }}</h2>
+
+<div class="mb-3">
+    <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">Back to Patients</a>
+</div>
+
+{% if consultations %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Doctor</th>
+            <th>Vitals 1</th>
+            <th>Vitals 2</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for consultation in consultations %}
+        <tr>
+            <td>{{ consultation.appointment.appointment_datetime.strftime('%Y-%m-%d') }}</td>
+            <td>{{ consultation.appointment.doctor_name }}</td>
+            <td>{{ consultation.vitals_1 }}</td>
+            <td>{{ consultation.vitals_2 }}</td>
+            <td>{{ consultation.notes }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No completed consultations found.</div>
+{% endif %}
+{% endblock %}
